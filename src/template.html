@@ -586,6 +586,10 @@
 const BGS = [
 __BG_SET__
 ];
+// the Egypt photos (assets/egypt/egypt.json, in file order): bundled in both apps, the app answers them from the APK
+const EGS = [
+__EG_SET__
+];
 // the app passes the chosen city in the URL fragment: #city=..&lat=..&lon=..&tz=..
 const _Q = new URLSearchParams((location.hash || '').replace(/^#/, ''));
 const _list = k => (_Q.get(k) || '').split(',').map(x=>x.trim()).filter(Boolean);
@@ -599,7 +603,8 @@ const CONFIG = {
   latitude: _num('lat', 24.7136),
   longitude: _num('lon', 46.6753),
   timezone: _tzOk(_Q.get('tz') || 'Asia/Riyadh') ? (_Q.get('tz') || 'Asia/Riyadh') : 'Asia/Riyadh',
-  prayerMethod: 4,
+  // #pmethod=: umm (Umm al-Qura, Aladhan's 4, the default) or egypt (Egyptian General Authority, Aladhan's 5)
+  prayerMethod: _Q.get('pmethod') === 'egypt' ? 5 : 4,
   // followed teams in priority order: #teams=id,id,... (up to 20); older builds send team1/team2
   teamIds: (_Q.has('teams') ? _Q.get('teams').split(',')
             : [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137'])
@@ -639,6 +644,10 @@ const CONFIG = {
   // the owner's own photos («صوري»): #own=how many (0-10) and #ownmode=mix (join ours, the default) or only
   own: Math.max(0, Math.min(10, Math.floor(_num('own', 0)))),
   ownMode: _Q.get('ownmode') === 'only' ? 'only' : 'mix',
+  // the background, #bg=: saudi (our hosted photos, as always), egypt (the Egypt photos), fixed (one Egypt photo, #bgfix=N, that
+  // never changes) or plain (no photo, a dark gradient)
+  bg: (v => ['egypt','fixed','plain'].includes(v) ? v : 'saudi')(_Q.get('bg')),
+  bgFix: Math.max(1, Math.floor(_num('bgfix', 1))),
   // digits everywhere: #digits=hindi (١٢٣, the default) or latin (123); anything else = hindi
   digits: _Q.get('digits') === 'latin' ? 'latin' : 'hindi',
   // the look of the card beside the clock: #cardstyle=current|dark1|glass1|dark3|glass3 (anything else = current)
@@ -646,7 +655,7 @@ const CONFIG = {
   // the markets at the top left: #markets=tasi,spx,btc (up to 4 of tasi aramco spx btc gold silver xrp; anything else = the default)
   // and #mkstyle=arrows (a ▲/▼ only, the default) or prices (the price and the day's change)
   markets: (l => l.length ? l : ['tasi','spx','btc'])(
-    _list('markets').filter((k, i, a) => ['tasi','aramco','spx','btc','gold','silver','xrp'].includes(k) && a.indexOf(k) === i).slice(0, 4)),
+    _list('markets').filter((k, i, a) => ['tasi','aramco','spx','btc','gold','silver','xrp','egp'].includes(k) && a.indexOf(k) === i).slice(0, 4)),
   mkStyle: _Q.get('mkstyle') === 'prices' ? 'prices' : 'arrows',
   // the national days (23 September, 22 February): #national=auto (the default) or off
   national: _Q.get('national') === 'off' ? 'off' : 'auto',
@@ -812,6 +821,7 @@ function buildPrayers(t){
 
 // Umm al-Qura: Fajr at 18.5°, Maghrib at sunset, Isha 90 min after Maghrib (120 in Ramadan),
 // Asr at shadow factor 1. Same method as Aladhan's method 4, so the offline times match to a minute or two.
+// Egyptian General Authority (#pmethod=egypt, Aladhan's 5): Fajr at 19.5°, Isha at 17.5°, the rest the same.
 function computePrayers(){
   const p = riyadhParts(), lat = CONFIG.latitude, lng = CONFIG.longitude;
   const tz = Math.round((Date.UTC(p.y,p.mo-1,p.d,p.h,p.mi,p.s) - Date.now()) / 60000) / 60;
@@ -839,10 +849,11 @@ function computePrayers(){
     return angleTime(a, t, false);
   };
   const adj = h => h + tz - lng/15;
-  const fajr = adj(angleTime(18.5, 5, true)), dhuhr = adj(noon(12)), asr = adj(asrTime(13));
+  const egypt = CONFIG.prayerMethod === 5;
+  const fajr = adj(angleTime(egypt ? 19.5 : 18.5, 5, true)), dhuhr = adj(noon(12)), asr = adj(asrTime(13));
   const sunrise = adj(angleTime(.833, 6, true));
   const maghrib = adj(angleTime(.833, 18, false));
-  const isha = maghrib + (hijriMonthNow() === 9 ? 120 : 90)/60;
+  const isha = egypt ? adj(angleTime(17.5, 18, false)) : maghrib + (hijriMonthNow() === 9 ? 120 : 90)/60;
   const hm = h => { const m = Math.round(fix(h, 24)*60) % 1440; return pad(Math.floor(m/60)) + ':' + pad(m%60); };
   // Isha is Maghrib plus its delay and stays an absolute time: past midnight (a late Maghrib at a high latitude) it reads «24:30», not an
   // hour that has already gone today (the rest of the page counts minutes from midnight, so 1470 is after 1439)
@@ -1685,6 +1696,7 @@ const MARKETS = {
   gold:   {name:'الذهب',    sym:'GC=F',     dec:2, unit:'ر.س', mul:GRAM},
   silver: {name:'الفضة',    sym:'SI=F',     dec:2, unit:'ر.س', mul:GRAM},
   xrp:    {name:'ريبل',     cg:'ripple',    dec:2, unit:'$'},
+  egp:    {name:'الدولار بالجنيه', sym:'EGP=X', dec:2, unit:'ج.م'},   // one US dollar in Egyptian pounds (Yahoo's USD/EGP)
 };
 const CG_YAHOO = {bitcoin:'BTC-USD', ripple:'XRP-USD'};   // the file CI keeps holds crypto under Yahoo's pair
 const TICKERS = CONFIG.markets.map(k => Object.assign({key:k, chg:k + '-chg', px:k + '-px'}, MARKETS[k]))
@@ -2858,7 +2870,7 @@ const OWN_ONLY = () => CONFIG.own > 0 && CONFIG.ownMode === 'only';
 const ownPhotos = () => Array.from({length: CONFIG.own}, (_, k) => ({url: OWN_BASE + (k + 1) + '.jpg', b: {}}));   // no credit: they are not ours
 
 async function loadPhotoIndex(){
-  if(OWN_ONLY()) return;   // nothing of ours is shown, so nothing is fetched
+  if(OWN_ONLY() || CONFIG.bg !== 'saudi') return;   // nothing hosted is shown, so nothing is fetched
   try{
     const r = await fetchT(PHOTO_BASE + 'index.json', 15000);
     if(!r.ok) return;
@@ -3005,6 +3017,21 @@ function showOwn(pick, own, local){
   };
   next(0);
 }
+// #bg=plain: no photo at all, the screen's own dark green with a soft gold light (nothing to download or decode)
+const PLAIN_BG = 'radial-gradient(90% 75% at 72% 30%,rgba(201,162,92,.16) 0%,rgba(201,162,92,0) 60%),'
+               + 'radial-gradient(70% 60% at 15% 85%,rgba(30,90,64,.35) 0%,rgba(30,90,64,0) 65%),'
+               + 'linear-gradient(160deg,#0B2219 0%,#06140E 55%,#030A07 100%)';
+function showPlain(){
+  const ph = document.querySelector('.photo');
+  reveal();
+  if(!ph || ph.style.backgroundImage === PLAIN_BG) return;
+  ph.style.backgroundImage = PLAIN_BG;
+  ph.style.setProperty('--dim', '0');
+  ph.classList.remove('settle');
+  cardRelease();   // nothing worth blurring behind the card
+  const cr = document.getElementById('credit');
+  if(cr) cr.textContent = '';
+}
 function applyBackground(force){
   try {
     const p = riyadhParts();
@@ -3012,7 +3039,15 @@ function applyBackground(force){
     const slot = riyadhDayNumber() * (1440 / slotMin) + Math.floor((p.h * 60 + p.mi) / slotMin);
     if(slot === BG_SLOT && !force) return;
     BG_SLOT = slot; BG_TURN++;   // a photo of theirs still on its way for an earlier turn is dropped
+    if(CONFIG.bg === 'plain'){ showPlain(); return; }
+    if(CONFIG.bg === 'fixed' && EGS.length){ const b = EGS[Math.min(CONFIG.bgFix, EGS.length) - 1]; showBackground(b.u, b); return; }
     const only = OWN_ONLY(), own = ownPhotos();
+    if(CONFIG.bg === 'egypt' && EGS.length){   // the Egypt photos rotate, the owner's join them (or replace them: only)
+      const pool = only ? own : EGS.map(b => ({url: b.u, b, bundled: true})).concat(own);
+      const pick = pool[slot % pool.length], local = EGS[slot % EGS.length];
+      if(own.includes(pick)) showOwn(pick, own, local); else showBackground(pick.url, pick.b);
+      return;
+    }
     const set = !only && REMOTE_BGS.length ? photoSet(REMOTE_BGS.length).map(k => REMOTE_BGS[k]) : [];
     const local = BGS[slot % BGS.length];
     // what rotates: ours (the hosted set, else the bundled photos once the owner has some), then the owner's; only = theirs alone

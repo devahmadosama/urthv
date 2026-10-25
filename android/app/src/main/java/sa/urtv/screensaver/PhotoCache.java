@@ -22,6 +22,8 @@ final class PhotoCache {
         FONTS = REPO + "assets/fonts/";
     /** the owner's own photos (Own): not a real address, the page asks for N.jpg here and only this app answers */
     static final String OWN = "https://own.urtv.invalid/";
+    /** the Egypt photos (Prefs.BACKGROUNDS egypt and fixed): bundled in the APK at assets/egypt/, never the network */
+    static final String EGYPT = "https://egypt.urtv.invalid/";
     private static final int KEEP = 12;   // the 5-photo set plus room for the next one
 
     private PhotoCache() {}
@@ -42,6 +44,10 @@ final class PhotoCache {
                 if (!name.matches("([1-9]|10)\\.jpg")) return null;
                 File f = Own.file(c, Integer.parseInt(name.substring(0, name.indexOf('.'))));
                 return f.isFile() ? jpeg(new FileInputStream(f)) : null;
+            }
+            if (url.startsWith(EGYPT)) {
+                String name = safeName(url.substring(EGYPT.length()));
+                return name == null ? null : jpeg(c.getAssets().open("egypt/" + name));
             }
             if (url.startsWith(BUNDLED)) {
                 String name = safeName(url.substring(BUNDLED.length()));

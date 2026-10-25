@@ -101,6 +101,12 @@ public class MainActivity extends Activity {
     private ImageView wallBack, wallFront;
     private View gridShade;
     private String[] wallpapers = new String[0];
+    /** the Egypt photos (assets/egypt/, file order: the same numbering as the screensaver's «صورة ثابتة») */
+    private String[] egyptWalls = new String[0];
+    /** what a plain or fixed background shows now ("plain" or its asset path); null while photos rotate */
+    private String wallKey;
+    /** the background setting ("bg/bgfix") seen at the last return to the home screen */
+    private String lastBg;
     private int wallIndex = -1;
     private long wallChangedAt;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -190,8 +196,12 @@ public class MainActivity extends Activity {
         // Catch installs/removals that happened while another app was in front.
         if (getPackageManager().getChangedPackages(packageSeq) != null) buildApps();
         if (firstShow) { firstShow = false; playEntrance(); }
-        // New photo on return if the current one has been up for the full interval.
-        if (wallIndex < 0 || SystemClock.elapsedRealtime() - wallChangedAt >= WALLPAPER_INTERVAL_MS) nextWallpaper();
+        // New photo on return if the current one has been up for the full interval, or the background was changed meanwhile.
+        ConfigSnapshot cfg = ConfigSnapshot.read(this);
+        String bgNow = cfg.param("bg") + "/" + cfg.param("bgfix");
+        boolean bgChanged = !bgNow.equals(lastBg);
+        lastBg = bgNow;
+        if (wallIndex < 0 || bgChanged || SystemClock.elapsedRealtime() - wallChangedAt >= WALLPAPER_INTERVAL_MS) nextWallpaper();
         else {
             scheduleWallpaper(WALLPAPER_INTERVAL_MS - (SystemClock.elapsedRealtime() - wallChangedAt));
             checkOwnChanged();   // the owner added or removed photos while another app was in front
@@ -257,6 +267,12 @@ public class MainActivity extends Activity {
         root.addView(gridShade, new FrameLayout.LayoutParams(-1, -1));
         try {
             wallpapers = getAssets().list("wallpapers");
+        } catch (java.io.IOException ignored) { }
+        try {
+            List<String> eg = new ArrayList<>();
+            for (String f : getAssets().list("egypt")) if (f.endsWith(".jpg")) eg.add(f);
+            java.util.Collections.sort(eg);
+            egyptWalls = eg.toArray(new String[0]);
         } catch (java.io.IOException ignored) { }
 
         glow = new View(this);
@@ -1126,21 +1142,45 @@ public class MainActivity extends Activity {
     private void nextWallpaper() {
         handler.removeCallbacks(rotateWallpaper);
         if (wallpapers.length == 0) return;
+        // the background picked in the screensaver's settings («الخلفية», #bg=): plain and fixed show one thing and stay
+        final ConfigSnapshot cfg = ConfigSnapshot.read(this);
+        final String bg = cfg.param("bg");
+        if ("plain".equals(bg) || ("fixed".equals(bg) && egyptWalls.length > 0)) {
+            int n = 1;
+            try { n = Integer.parseInt(cfg.param("bgfix")); } catch (Exception ignored) { }
+            final String key = "plain".equals(bg) ? "plain" : "egypt/" + egyptWalls[Math.max(1, Math.min(n, egyptWalls.length)) - 1];
+            wallChangedAt = SystemClock.elapsedRealtime();
+            if (!key.equals(wallKey)) {   // the same one again: nothing to decode or fade
+                wallKey = key;
+                new Thread(() -> {
+                    Bitmap bm = null;
+                    try { bm = "plain".equals(key) ? plainWallpaper() : decode(() -> getAssets().open(key)); }
+                    catch (java.io.IOException | RuntimeException ignored) { }
+                    Bitmap result = bm;
+                    runOnUiThread(() -> showWallpaper(result));
+                }).start();
+            }
+            scheduleWallpaper(WALLPAPER_INTERVAL_MS);
+            return;
+        }
+        wallKey = null;
+        final boolean egypt = "egypt".equals(bg) && egyptWalls.length > 0;   // the Egypt photos instead of ours (none hosted)
+        final String[] ours = egypt ? egyptWalls : wallpapers;
         final Object[] own = ownInfo();
         final int ownCount = (Integer) own[0];
         final boolean only = ownCount > 0 && "only".equals(own[1]);
         prefs().edit().putLong("ownRev", (Long) own[2]).apply();
-        final String[] remote = only ? new String[0] : remotePhotos();
-        final int base = only ? 0 : wallpapers.length + remote.length;   // ours come first, then the owner's
+        final String[] remote = only || egypt ? new String[0] : remotePhotos();
+        final int base = only ? 0 : ours.length + remote.length;   // ours come first, then the owner's
         final int total = only ? ownCount : base + ownCount;
         if (wallIndex < 0) wallIndex = prefs().getInt("wallpaper", -1);
         wallIndex = (wallIndex + 1) % total;
         prefs().edit().putInt("wallpaper", wallIndex).apply();
         wallChangedAt = SystemClock.elapsedRealtime();
         final int idx = wallIndex;
-        final String fallback = "wallpapers/" + wallpapers[idx % wallpapers.length];
+        final String fallback = (egypt ? "egypt/" : "wallpapers/") + ours[idx % ours.length];
         new Thread(() -> {
-            if (!only) {   // no network while only the owner's photos show
+            if (!only && !egypt) {   // no network while only the owner's photos, or the bundled Egypt ones, show
                 refreshPhotoIndex();
                 pruneCachedPhotos(remotePhotos());
             }
@@ -1150,8 +1190,8 @@ public class MainActivity extends Activity {
                 try {
                     bm = decode(() -> getContentResolver().openInputStream(photo));
                 } catch (java.io.IOException | RuntimeException ignored) { }
-            } else if (idx >= wallpapers.length) {
-                java.io.File f = new java.io.File(getFilesDir(), "photos/" + remote[idx - wallpapers.length]);
+            } else if (idx >= ours.length) {
+                java.io.File f = new java.io.File(getFilesDir(), "photos/" + remote[idx - ours.length]);
                 try {
                     if (!f.isFile() && failedRecently(f.getName())) throw new java.io.IOException("failed lately");   // the bundled one meanwhile
                     if (!f.isFile()) {
@@ -1176,6 +1216,24 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> showWallpaper(result));
         }).start();
         scheduleWallpaper(WALLPAPER_INTERVAL_MS);
+    }
+
+    /** «لون سادة»: no photo, the screensaver's dark green with a soft gold light (as PLAIN_BG in the page). */
+    private Bitmap plainWallpaper() {
+        int w = 640, h = 360;   // a gradient: CENTER_CROP scales it up without a visible loss
+        Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bm);
+        GradientDrawable base = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{0xFF0B2219, 0xFF06140E, 0xFF030A07});
+        base.setBounds(0, 0, w, h);
+        base.draw(c);
+        GradientDrawable glow = new GradientDrawable();
+        glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        glow.setColors(new int[]{0x29C9A25C, 0x00C9A25C});
+        glow.setGradientCenter(.72f, .30f);
+        glow.setGradientRadius(w * .55f);
+        glow.setBounds(0, 0, w, h);
+        glow.draw(c);
+        return bm;
     }
 
     private void showWallpaper(Bitmap bm) {

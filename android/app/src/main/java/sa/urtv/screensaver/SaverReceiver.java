@@ -23,6 +23,7 @@ import java.util.Locale;
  *       [--es panel prayers] [--es home_panel prayers,hourly,verse|none] [--es greeting on|off] [--es adhanbar on|off] [--es yearstrip on|off] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
  *       [--es cardstyle current|dark1|glass1|dark3|glass3] [--es national auto|off]
+ *       [--es bg saudi|egypt|fixed|plain] [--es bgfix N] [--es pmethod umm|egypt]
  *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices] [--es stocks 2222,1120,AAPL]
  *       [--es leagues 'Saudi-Arabian Pro League,NBA']
  *       [--es prayeradj on|off] [--es adj_fajr +2 --es adj_dhuhr 0 --es adj_asr 0 --es adj_maghrib -1 --es adj_isha 0]   («تعديل وقت الصلاة», minutes -20..20)
@@ -198,6 +199,15 @@ public class SaverReceiver extends BroadcastReceiver {
         String national = i.getStringExtra("national");
         if (national != null && !isChoice(Prefs.NATIONAL, national))
             return "error: national is one of " + choices(Prefs.NATIONAL);
+        String bg = i.getStringExtra("bg");
+        if (bg != null && !isChoice(Prefs.BACKGROUNDS, bg))
+            return "error: bg is one of " + choices(Prefs.BACKGROUNDS);
+        String bgFix = i.getStringExtra("bgfix");
+        if (bgFix != null && !bgFix.matches("[1-9][0-9]?"))
+            return "error: bgfix is the Egypt photo's number, 1 or more (optimize/saver.sh bgfix with no number lists them)";
+        String prayerMethod = i.getStringExtra("pmethod");
+        if (prayerMethod != null && !isChoice(Prefs.PRAYER_METHODS, prayerMethod))
+            return "error: pmethod is one of " + choices(Prefs.PRAYER_METHODS);
         String cardStyle = i.getStringExtra("cardstyle");
         if (cardStyle != null && !isChoice(Prefs.CARD_STYLES, cardStyle))
             return "error: cardstyle is one of " + choices(Prefs.CARD_STYLES);
@@ -278,6 +288,9 @@ public class SaverReceiver extends BroadcastReceiver {
         if (photos != null) p.setPhotoMinutes(photos);
         if (digits != null) p.setDigits(digits);
         if (national != null) p.setNational(national);
+        if (bgFix != null) p.setBgFix(Integer.parseInt(bgFix));
+        if (bg != null) p.setBg(bg);
+        if (prayerMethod != null) p.setPrayerMethod(prayerMethod);
         if (cardStyle != null) p.setCardStyle(cardStyle);
         if (mkStyle != null) p.setMkStyle(mkStyle);
         if (markets != null) p.setMarkets(markets);
@@ -394,6 +407,8 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\nphotos: " + p.photoMinutes()
             + "\ndigits: " + p.digits()
             + "\nnational: " + p.national()
+            + "\nbg: " + p.bg() + ("fixed".equals(p.bg()) ? " (photo " + p.bgFix() + ")" : "")
+            + "\npmethod: " + p.prayerMethod()
             + "\ncardstyle: " + p.cardStyle()
             + "\nmarkets: " + Prefs.join(p.markets(), ",") + "\nmkstyle: " + p.mkStyle()
             + "\nstocks: " + Prefs.join(p.stocks(), ",")

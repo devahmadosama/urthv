@@ -43,5 +43,17 @@ final class ConfigSnapshot {
     /** {city, zone id}; null when the screensaver gave nothing: the TV's own zone then */
     String[] cityZone() { return fragment == null ? null : ClockZone.parse(fragment); }
 
+    /** one value of the fragment ("bg" -> "egypt"); null when the screensaver gave nothing or does not send it (an older one) */
+    String param(String key) {
+        if (fragment == null) return null;
+        for (String part : fragment.split("&")) {
+            if (part.startsWith(key + "=")) {
+                try { return java.net.URLDecoder.decode(part.substring(key.length() + 1), "UTF-8"); }
+                catch (Exception e) { return null; }
+            }
+        }
+        return null;
+    }
+
     boolean latin() { return fragment != null && (fragment.contains("&digits=latin") || fragment.startsWith("digits=latin")); }
 }

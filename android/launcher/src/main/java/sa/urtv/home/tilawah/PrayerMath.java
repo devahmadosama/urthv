@@ -36,6 +36,14 @@ final class PrayerMath {
      * day, instead of wrapping back to an hour of this day that has already gone.
      */
     static long[] compute(int y, int mo, int d, double lat, double lng, String tz, boolean ramadan) {
+        return compute(y, mo, d, lat, lng, tz, ramadan, false);
+    }
+
+    /**
+     * The same; egypt = the Egyptian General Authority (Aladhan's method 5): Fajr at 19.5°, Isha at 17.5° below the
+     * horizon instead of a delay after Maghrib.
+     */
+    static long[] compute(int y, int mo, int d, double lat, double lng, String tz, boolean ramadan, boolean egypt) {
         TimeZone zone = TimeZone.getTimeZone(tz);
         long day0 = midnight(y, mo, d, tz);
         Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.US);
@@ -44,7 +52,7 @@ final class PrayerMath {
         double jd0 = utc.getTimeInMillis() / 86400000.0 + 2440587.5 - lng / 360.0;
         double tzHours = zone.getOffset(day0 + 12 * 3600_000L) / 3600000.0;
 
-        double fajr = adj(angleTime(jd0, lat, 18.5, 5, true), tzHours, lng);
+        double fajr = adj(angleTime(jd0, lat, egypt ? 19.5 : 18.5, 5, true), tzHours, lng);
         double sunrise = adj(angleTime(jd0, lat, .833, 6, true), tzHours, lng);
         double dhuhr = adj(noon(jd0, 12), tzHours, lng);
         double asr = adj(asrTime(jd0, lat, 13), tzHours, lng);
@@ -56,7 +64,13 @@ final class PrayerMath {
         at[DHUHR] = day0 + minutesOfDay(dhuhr) * 60_000L;
         at[ASR] = day0 + minutesOfDay(asr) * 60_000L;
         at[MAGHRIB] = day0 + minutesOfDay(maghrib) * 60_000L;
-        at[ISHA] = at[MAGHRIB] + ishaDelayMillis(ramadan);
+        if (egypt) {
+            // an angle after sunset: the same day, unless it wraps past midnight (a long summer evening far north)
+            long isha = day0 + minutesOfDay(adj(angleTime(jd0, lat, 17.5, 18, false), tzHours, lng)) * 60_000L;
+            at[ISHA] = isha < at[MAGHRIB] ? isha + 86400_000L : isha;
+        } else {
+            at[ISHA] = at[MAGHRIB] + ishaDelayMillis(ramadan);
+        }
         return at;
     }
 

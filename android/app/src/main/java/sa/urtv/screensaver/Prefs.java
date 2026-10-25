@@ -78,6 +78,13 @@ final class Prefs {
     // the national days (sent to the page as #national=; auto shows them on their days, off never)
     static final String[][] NATIONAL = {{"auto", "تلقائي"}, {"off", "إيقاف"}};
 
+    // the background (sent to the page as #bg=, and read by the home app's wallpaper; saudi is what it always showed)
+    static final String[][] BACKGROUNDS = {{"saudi", "صور السعودية"}, {"egypt", "صور مصر"}, {"fixed", "صورة ثابتة"},
+        {"plain", "لون سادة بدون صور"}};
+
+    // how the prayer times are computed (sent to the page as #pmethod=, and read by the home app's adhan)
+    static final String[][] PRAYER_METHODS = {{"umm", "أم القرى"}, {"egypt", "الهيئة المصرية العامة للمساحة"}};
+
     // look of the card beside the clock (sent to the page as #cardstyle=; current is the plain card it always had)
     static final String[][] CARD_STYLES = {{"current", "الحالية"}, {"dark1", "داكنة"}, {"glass1", "زجاجية"},
         {"dark3", "داكنة بإطار"}, {"glass3", "زجاجية بإطار"}};
@@ -86,6 +93,7 @@ final class Prefs {
     static final String[][] MARKETS = {
         {"tasi", "تاسي"}, {"aramco", "أرامكو"}, {"spx", "S&P 500"}, {"btc", "بيتكوين"},
         {"gold", "الذهب (الجرام بالريال)"}, {"silver", "الفضة (الجرام بالريال)"}, {"xrp", "ريبل"},
+        {"egp", "الدولار بالجنيه المصري"},
     };
     static final int MAX_MARKETS = 4;
     static final String DEFAULT_MARKETS = "tasi,spx,btc";
@@ -292,6 +300,30 @@ final class Prefs {
         return NATIONAL[0][1];
     }
 
+    String bg() { String v = sp.getString("bg", "saudi"); return isOneOf(BACKGROUNDS, v) ? v : "saudi"; }
+    void setBg(String v) { sp.edit().putString("bg", v).apply(); }
+    /** the Egypt photo a fixed background shows, 1-based in assets/egypt/'s file order */
+    int bgFix() { return Math.max(1, sp.getInt("bgFix", 1)); }
+    void setBgFix(int n) { sp.edit().putInt("bgFix", Math.max(1, n)).apply(); }
+
+    static String bgLabel(String v) {
+        for (String[] b : BACKGROUNDS) if (b[0].equals(v)) return b[1];
+        return BACKGROUNDS[0][1];
+    }
+
+    String prayerMethod() { return "egypt".equals(sp.getString("prayerMethod", "umm")) ? "egypt" : "umm"; }
+    void setPrayerMethod(String v) { sp.edit().putString("prayerMethod", v).apply(); }
+
+    static String prayerMethodLabel(String v) {
+        for (String[] m : PRAYER_METHODS) if (m[0].equals(v)) return m[1];
+        return PRAYER_METHODS[0][1];
+    }
+
+    private static boolean isOneOf(String[][] choices, String v) {
+        for (String[] c : choices) if (c[0].equals(v)) return true;
+        return false;
+    }
+
     String cardStyle() { return sp.getString("cardStyle", "current"); }
     void setCardStyle(String v) { sp.edit().putString("cardStyle", v).apply(); }
 
@@ -330,7 +362,8 @@ final class Prefs {
     int[] prayerAdj() { return PrayerAdj.decode(sp.getString("prayerAdj", "")); }
     void setPrayerAdj(int[] v) { sp.edit().putString("prayerAdj", PrayerAdj.encode(v)).apply(); }
 
-    boolean autoUpdate() { return sp.getBoolean("autoUpdate", true); }
+    /** off by default in this local build: the page it would download (tshi-dev/UrTV) has neither the Egypt photos nor the Egyptian method */
+    boolean autoUpdate() { return sp.getBoolean("autoUpdate", false); }
     void setAutoUpdate(boolean v) { sp.edit().putBoolean("autoUpdate", v).apply(); }
 
     SharedPreferences raw() { return sp; }
@@ -385,6 +418,8 @@ final class Prefs {
             + "&yearstrip=" + (yearStrip() ? "1" : "0")
             + PrayerAdj.fragment(prayerAdjOn(), prayerAdj())
             + "&national=" + national()
+            + "&bg=" + bg() + "&bgfix=" + bgFix()
+            + "&pmethod=" + prayerMethod()
             + "&markets=" + join(markets(), ",")
             + "&mkstyle=" + mkStyle()
             + "&stocks=" + join(stocks(), ",")

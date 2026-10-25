@@ -58,7 +58,7 @@ final class PrayerTimes {
 
     private static PrayerTimes of(Calendar local, Place place, boolean ramadan) {
         long[] times = PrayerMath.compute(local.get(Calendar.YEAR), local.get(Calendar.MONTH) + 1,
-                local.get(Calendar.DAY_OF_MONTH), place.lat, place.lng, place.tz, ramadan);
+                local.get(Calendar.DAY_OF_MONTH), place.lat, place.lng, place.tz, ramadan, place.egypt);
         PrayerTimes t = new PrayerTimes();
         t.tz = place.tz;
         t.ramadan = ramadan;
@@ -156,7 +156,7 @@ final class PrayerTimes {
     // ---------------------------------------------------------------- Aladhan
 
     /**
-     * Replaces today's computed times with Aladhan's (method 4) once they arrive, and puts the alarm back for the
+     * Replaces today's computed times with Aladhan's (method 4, or 5 for the Egyptian method) once they arrive, and puts the alarm back for the
      * new times. Runs off the main thread; `done` runs on the main thread when something changed.
      */
     static void refresh(final Context c, final Runnable done) {
@@ -174,7 +174,7 @@ final class PrayerTimes {
         try {
             String url = "https://api.aladhan.com/v1/timings/" + PrayerMath.aladhanDate(day.getTimeInMillis(), place.tz)
                     + "?latitude=" + place.lat + "&longitude=" + place.lng
-                    + "&method=4&timezonestring=" + URLEncoder.encode(place.tz, "UTF-8");
+                    + "&method=" + (place.egypt ? 5 : 4) + "&timezonestring=" + URLEncoder.encode(place.tz, "UTF-8");
             HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
             con.setConnectTimeout(6000);
             con.setReadTimeout(8000);
@@ -189,7 +189,8 @@ final class PrayerTimes {
             }
             JSONObject timings = new JSONObject(body.toString()).getJSONObject("data").getJSONObject("timings");
             StringBuilder out = new StringBuilder();
-            for (int i = 0; i <= MAGHRIB; i++) {   // Isha stays ours: 90/120 minutes after Maghrib
+            int last = place.egypt ? ISHA : MAGHRIB;   // Umm al-Qura: Isha stays ours, 90/120 minutes after Maghrib; Egypt: Aladhan's
+            for (int i = 0; i <= last; i++) {
                 int[] hm = PrayerMath.parseClock(timings.optString(KEYS[i]));   // «5:12 (+03)» is 5:12
                 if (hm == null) throw new IllegalStateException("no " + KEYS[i]);
                 if (out.length() > 0) out.append(',');
@@ -209,7 +210,7 @@ final class PrayerTimes {
         }
     }
 
-    /** Aladhan's five times, "HH:mm,..." as saved; Isha is Maghrib's moment plus its delay, never wrapped into the day. */
+    /** Aladhan's five times, "HH:mm,..." as saved; Isha is Maghrib's moment plus its delay (or, by the Egyptian method, Aladhan's own sixth time), never wrapped into the day. */
     private void apply(String saved) {
         String[] values = saved.split(",");
         if (values.length < MAGHRIB + 1) return;
@@ -220,7 +221,13 @@ final class PrayerTimes {
             parsed[i] = day0 + (hm[0] * 60 + hm[1]) * 60_000L;
         }
         for (int i = 0; i <= MAGHRIB; i++) set(i, parsed[i]);
-        set(ISHA, parsed[MAGHRIB] + PrayerMath.ishaDelayMillis(ramadan));
+        int[] isha = values.length > ISHA ? PrayerMath.parseClock(values[ISHA]) : null;   // saved by the Egyptian method
+        if (isha != null) {
+            long at = day0 + (isha[0] * 60 + isha[1]) * 60_000L;
+            set(ISHA, at < parsed[MAGHRIB] ? at + 86400_000L : at);
+        } else {
+            set(ISHA, parsed[MAGHRIB] + PrayerMath.ishaDelayMillis(ramadan));
+        }
         shift();   // Aladhan's times are the raw ones: the person's minutes go on top of them
     }
 
@@ -253,6 +260,6 @@ final class PrayerTimes {
 
     /** The day's key in the city's zone and for that city: a new city the same day asks Aladhan again. */
     private static String key(Calendar day, Place place) {
-        return PrayerMath.key(day.getTimeInMillis(), place.lat, place.lng, place.tz);
+        return PrayerMath.key(day.getTimeInMillis(), place.lat, place.lng, place.tz) + (place.egypt ? "_eg" : "");
     }
 }

@@ -29,8 +29,11 @@
 #                                                  (the TV's own timer; left alone unless you run this)
 #   optimize/saver.sh cardstyle glass1             look of the card beside the clock: current dark1 glass1 dark3 glass3
 #   optimize/saver.sh national off                 the quiet green look on National Day (21-25 Sep) and Founding Day (20-24 Feb): auto (default) or off
+#   optimize/saver.sh bg egypt                     background: saudi (default) egypt (Egypt photos) fixed (one Egypt photo) plain (no photo)
+#   optimize/saver.sh bgfix 3                      the Egypt photo a fixed background shows (no number: the list)
+#   optimize/saver.sh pmethod egypt                prayer times: umm (Umm al-Qura, default) or egypt (Egyptian General Authority)
 #   optimize/saver.sh digits latin                 numbers: hindi = ١٢٣ (default), latin = 123
-#   optimize/saver.sh markets tasi,gold,btc        top left, up to 4 in order: tasi aramco spx btc gold silver xrp (default tasi,spx,btc)
+#   optimize/saver.sh markets tasi,gold,btc        top left, up to 4 in order: tasi aramco spx btc gold silver xrp egp (default tasi,spx,btc)
 #   optimize/saver.sh mkstyle prices               markets: arrows (▲▼ only, default) or prices (price and day's change)
 #   optimize/saver.sh stocks 2222 1120 AAPL        watchlist of the stocks card (card stocks): up to 8 Tadawul codes (4 digits) or US tickers
 #   optimize/saver.sh tasks list                   «المهام» kept on the TV; N = the number list shows
@@ -163,6 +166,15 @@ case "${1:-}" in
     if [ $# -eq 3 ]; then v=$(quote "$3") || exit 1; extra="$extra --es cdname $v"; fi
     send SET "$extra" ;;
   national) set1 national "${2:?usage: optimize/saver.sh national auto|off}" ;;
+  bg)       set1 bg "${2:?usage: optimize/saver.sh bg saudi|egypt|fixed|plain}" ;;
+  bgfix)
+    if [ $# -lt 2 ]; then   # the Egypt photos by number, the order the apps use (file order)
+      "$PY" -I -c 'import json,sys; [print(i+1, b["title"]) for i,b in enumerate(sorted(json.load(open(sys.argv[1], encoding="utf-8")), key=lambda b: b["file"]))]' assets/egypt/egypt.json
+      echo "then: optimize/saver.sh bgfix N   (also makes the background fixed)"; exit 0
+    fi
+    v=$(quote "$2") || exit 1
+    send SET "--es bgfix $v --es bg fixed" ;;
+  pmethod)  set1 pmethod "${2:?usage: optimize/saver.sh pmethod umm|egypt}" ;;
   digits)   set1 digits "${2:?usage: optimize/saver.sh digits latin}" ;;
   idle)
     # the app may change the TV's timer only if the owner allowed it; the shell always may

@@ -76,7 +76,10 @@ push_install() {   # $1 apk name, $2 package
   if [ "$2" = sa.urtv.home ]; then   # the home app targets an older SDK than Play Protect likes (seen on Android 12-14)
     echo "للشخص: بعد لحظات ممكن تطلع على التلفزيون رسالة من Play Protect؛ إذا طلعت اضغط «تثبيت على أي حال» (Install anyway)."
   fi
-  if ! curl_get -fsSL -o "optimize/$1" "$REL/$1"; then
+  if [ "${URTV_LOCAL_APKS:-0}" = 1 ]; then   # a local build (android/*/build/outputs) copied to optimize/ by hand: no download
+    [ -s "optimize/$1" ] || { echo "!! URTV_LOCAL_APKS=1 but optimize/$1 is missing"; exit 1; }
+    echo "Using the local build optimize/$1 (not downloaded)."
+  elif ! curl_get -fsSL -o "optimize/$1" "$REL/$1"; then
     echo "!! Could not download $REL/$1 (tag ${APK_TAG:-apk-latest}): no such build, or no internet"; exit 1
   fi
   "$PY" -I optimize/tv.py --push-b64 "optimize/$1" "/data/local/tmp/$1"

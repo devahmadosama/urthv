@@ -22,6 +22,7 @@ FONTS = {
 }
 # tv.html points here for fonts and bundled photos; the app answers from its assets, a browser from GitHub.
 REPO = "https://raw.githubusercontent.com/tshi-dev/UrTV/master/"
+EGYPT_BASE = "https://egypt.urtv.invalid/"   # not a real address: only the apps answer it (PhotoCache), from assets/egypt/
 
 
 TAFSIR_MAX = 130   # characters kept of «التفسير الميسر»; the card shows at most three lines of it
@@ -307,6 +308,8 @@ def main():
 
     bg_dir = ROOT / "assets/backgrounds"
     bgs = json.loads((bg_dir / "backgrounds.json").read_text(encoding="utf-8"))
+    eg_dir = ROOT / "assets/egypt"
+    egs = sorted(json.loads((eg_dir / "egypt.json").read_text(encoding="utf-8")), key=lambda b: b["file"])
     for name, inline in (("urtv.html", True), ("tv.html", False)):
         page = html
         for token, font in FONTS.items():
@@ -319,9 +322,15 @@ def main():
         for bg in bgs:
             u = data_uri(bg_dir / bg["file"], "image/jpeg") if inline else REPO + "assets/backgrounds/" + bg["file"]
             entries.append(f'  {{u:"{u}", c:{js_json(bg["credit"])}, d:{bg["brightness"]}}}')
+        # the Egypt photos: in both APKs (assets/egypt/), answered by PhotoCache at EGYPT_BASE; inlined in the stand-alone page
+        eg_entries = []
+        for bg in egs:
+            u = data_uri(eg_dir / bg["file"], "image/jpeg") if inline else EGYPT_BASE + bg["file"]
+            eg_entries.append(f'  {{u:"{u}", c:{js_json(bg["credit"])}, d:{bg["brightness"]}}}')
         out = ROOT / "dist" / name
         out.parent.mkdir(exist_ok=True)
-        out.write_text(page.replace("__BG_SET__", ",\n".join(entries)), encoding="utf-8")
+        out.write_text(page.replace("__BG_SET__", ",\n".join(entries)).replace("__EG_SET__", ",\n".join(eg_entries)),
+                       encoding="utf-8")
         print(f"wrote {out.relative_to(ROOT)} ({out.stat().st_size / 1e6:.1f} MB)")
 
 

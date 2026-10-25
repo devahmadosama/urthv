@@ -1,0 +1,72 @@
+[
+ {
+  "file": "eg01_pyramids.jpg",
+  "title": "أهرامات الجيزة",
+  "credit": "Ricardo Liberato · CC BY-SA 2.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:All_Gizah_Pyramids.jpg",
+  "brightness": 0.85
+ },
+ {
+  "file": "eg02_camel.jpg",
+  "title": "جمل عند الأهرامات",
+  "credit": "kallerna · CC BY-SA 3.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Camel_and_the_pyramids.jpg",
+  "brightness": 0.85
+ },
+ {
+  "file": "eg03_sphinx.jpg",
+  "title": "أبو الهول",
+  "credit": "Petar Milošević · CC BY-SA 4.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Great_Sphinx_of_Giza_(%D8%A3%D8%A8%D9%88_%D8%A7%D9%84%D9%87%D9%88%D9%84).jpg",
+  "brightness": 0.85
+ },
+ {
+  "file": "eg04_luxor.jpg",
+  "title": "منطاد فوق الأقصر",
+  "credit": "Balloon_over_Luxor_-_Egypt.jpg: Marcosleal · CC BY-SA 3.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Balloon_over_Luxor_-_Egypt_denoised.jpg",
+  "brightness": 0.95
+ },
+ {
+  "file": "eg05_aswan.jpg",
+  "title": "النيل في أسوان",
+  "credit": "Marc Ryckaert (MJJR) · CC BY 3.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Aswan_Nile_R23.jpg",
+  "brightness": 0.85
+ },
+ {
+  "file": "eg06_abusimbel.jpg",
+  "title": "معبد أبو سمبل",
+  "credit": "Diego Delso · CC BY-SA 4.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Templo_de_Rams%C3%A9s_II,_Abu_Simbel,_Egipto,_2022-04-02,_DD_03.jpg",
+  "brightness": 0.85
+ },
+ {
+  "file": "eg07_karnak.jpg",
+  "title": "معبد الكرنك",
+  "credit": "Hamerani · CC BY-SA 4.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Karnak_temple_complex_12.jpg",
+  "brightness": 0.85
+ },
+ {
+  "file": "eg08_alexandria.jpg",
+  "title": "مكتبة الإسكندرية",
+  "credit": "Mono Abo-Abda · CC BY-SA 4.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Bibliotiqa_Alexandria_9_edited.jpg",
+  "brightness": 0.95
+ },
+ {
+  "file": "eg09_sinai.jpg",
+  "title": "دير سانت كاترين",
+  "credit": "Berthold Werner · CC BY-SA 3.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Katharinenkloster_Sinai_BW_2.jpg",
+  "brightness": 0.95
+ },
+ {
+  "file": "eg10_ibntulun.jpg",
+  "title": "مسجد ابن طولون",
+  "credit": "Berthold Werner · CC BY 3.0 · Wikimedia Commons",
+  "page": "https://commons.wikimedia.org/wiki/File:Kairo_Ibn_Tulun_Moschee_BW_5.jpg",
+  "brightness": 0.85
+ }
+]

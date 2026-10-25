@@ -35,6 +35,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** Remote-friendly settings: every row is a button that opens a list. */
@@ -146,6 +147,8 @@ public class SettingsActivity extends Activity {
         noConv = false;
         row("تنبيه قبل الأذان", prefs.adhanBar() ? "يعمل · شريط في أعلى الشاشة آخر ١٠ دقائق، ثم حتى الإقامة" : "متوقف", R.drawable.ic_eye,
             new Runnable() { public void run() { prefs.setAdhanBar(!prefs.adhanBar()); render(); } });
+        row("طريقة حساب الصلاة", Prefs.prayerMethodLabel(prefs.prayerMethod()), R.drawable.ic_eye,
+            new Runnable() { public void run() { pickPrayerMethod(); } });
         row("تعديل وقت الصلاة", prefs.prayerAdjOn() ? "يعمل · لكل صلاة دقائقها، من −٢٠ إلى +٢٠ (الشروق لا يتغيّر)" : "متوقف · الأوقات كما تُحسب", R.drawable.ic_eye,
             new Runnable() { public void run() { prefs.setPrayerAdjOn(!prefs.prayerAdjOn()); render(); } });
         if (prefs.prayerAdjOn()) for (int k = 0; k < PrayerAdj.COUNT; k++) adjRow(k);
@@ -200,6 +203,7 @@ public class SettingsActivity extends Activity {
         }
 
         header("التوقيت");
+        row("الخلفية", bgLabel(), R.drawable.ic_eye, new Runnable() { public void run() { pickBackground(); } });
         row("تبديل الصورة كل", minutesLabel(Integer.parseInt(prefs.photoMinutes())), R.drawable.ic_sync,
             new Runnable() { public void run() { pickPhotoMinutes(); } });
         row("صوري (" + arabicNum(Own.count(this)) + "/" + arabicNum(Own.MAX) + ")", ownLabel(), R.drawable.ic_eye,
@@ -780,6 +784,76 @@ public class SettingsActivity extends Activity {
         }
         new Dlg(this).setTitle("المناسبات الوطنية")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setNational(Prefs.NATIONAL[i][0]); d.dismiss(); render(); })
+            .show();
+    }
+
+    private void pickPrayerMethod() {
+        String[] labels = new String[Prefs.PRAYER_METHODS.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = Prefs.PRAYER_METHODS[i][1];
+            if (Prefs.PRAYER_METHODS[i][0].equals(prefs.prayerMethod())) sel = i;
+        }
+        new Dlg(this).setTitle("طريقة حساب الصلاة")
+            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setPrayerMethod(Prefs.PRAYER_METHODS[i][0]); d.dismiss(); render(); })
+            .show();
+    }
+
+    /** The Egypt photos' Arabic titles, in file order (the order the page and the home app number them in). */
+    private List<String> egyptTitles() {
+        List<String[]> rows = new ArrayList<>();
+        try (InputStream in = getAssets().open("egypt/egypt.json")) {
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
+            JSONArray a = new JSONArray(b.toString("UTF-8"));
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject o = a.getJSONObject(i);
+                rows.add(new String[]{o.optString("file"), o.optString("title")});
+            }
+        } catch (Exception ignored) { }
+        Collections.sort(rows, (x, y) -> x[0].compareTo(y[0]));
+        List<String> titles = new ArrayList<>();
+        for (String[] r : rows) titles.add(r[1]);
+        return titles;
+    }
+
+    private String bgLabel() {
+        if (!"fixed".equals(prefs.bg())) return Prefs.bgLabel(prefs.bg());
+        List<String> t = egyptTitles();
+        return t.isEmpty() ? Prefs.bgLabel("fixed") : "صورة ثابتة · " + t.get(Math.min(prefs.bgFix(), t.size()) - 1);
+    }
+
+    private void pickBackground() {
+        String[] labels = new String[Prefs.BACKGROUNDS.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = Prefs.BACKGROUNDS[i][1];
+            if (Prefs.BACKGROUNDS[i][0].equals(prefs.bg())) sel = i;
+        }
+        new Dlg(this).setTitle("الخلفية")
+            .setSingleChoiceItems(labels, sel, (d, i) -> {
+                d.dismiss();
+                if ("fixed".equals(Prefs.BACKGROUNDS[i][0])) { pickFixedPhoto(); return; }
+                prefs.setBg(Prefs.BACKGROUNDS[i][0]);
+                render();
+            })
+            .show();
+    }
+
+    /** Which Egypt photo stays: chosen by its place, then the background becomes fixed. */
+    private void pickFixedPhoto() {
+        List<String> t = egyptTitles();
+        if (t.isEmpty()) return;
+        int sel = "fixed".equals(prefs.bg()) ? Math.min(prefs.bgFix(), t.size()) - 1 : 0;
+        new Dlg(this).setTitle("الصورة الثابتة")
+            .setSingleChoiceItems(t.toArray(new String[0]), sel, (d, i) -> {
+                prefs.setBgFix(i + 1);
+                prefs.setBg("fixed");
+                d.dismiss();
+                render();
+            })
             .show();
     }
 

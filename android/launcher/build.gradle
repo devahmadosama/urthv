@@ -49,8 +49,9 @@ android {
 }
 
 def copyWallpapers = tasks.register('copyWallpapers', Copy) {
-    from('../../assets/backgrounds') { include '*.jpg' }
-    into "$buildDir/generated/wallpapers/wallpapers"
+    from('../../assets/backgrounds') { include '*.jpg'; into 'wallpapers' }
+    from('../../assets/egypt') { include '*.jpg'; into 'egypt' }   // «صور مصر» and «صورة ثابتة»
+    into "$buildDir/generated/wallpapers"
 }
 preBuild.dependsOn copyWallpapers
 
