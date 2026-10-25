@@ -17,7 +17,14 @@ final class Ui {
     static Typeface font(Context c, String file) {
         Typeface cached = FONTS.get(file);
         if (cached != null) return cached;
-        Typeface made = Typeface.createFromAsset(c.getAssets(), "fonts/" + file);
+        Typeface made;
+        try {
+            made = Typeface.createFromAsset(c.getAssets(), "fonts/" + file);
+        } catch (RuntimeException e) {
+            // a local build has no Thmanyah (its licence keeps it in the author's private repo): the system's Arabic font,
+            // as the rest of the app falls back, instead of a crash when «تلاوة» opens
+            made = Typeface.create(Typeface.DEFAULT, file.contains("Bold") ? Typeface.BOLD : Typeface.NORMAL);
+        }
         FONTS.put(file, made);
         return made;
     }
